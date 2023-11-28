@@ -1,0 +1,15 @@
+icl_tasks:
+-
+  label: ms-marco
+  dataset_uri: /mnt/workdisk/eitan/notebooks/ms_marco_small.jsonl
+  num_fewshot: [0]
+  icl_task_type: rag_generation
+  prompt_string: "Please use the passages to answer the question:\n"
+  continuation_delimiter: "\nAnswer: " # this separates questions from answers
+# -
+#   label: jeopardy
+#   dataset_uri: eval/local_data/world_knowledge/jeopardy_all.jsonl # ADD YOUR OWN DATASET URI
+#   num_fewshot: [0]
+#   icl_task_type: language_modeling
+#   continuation_delimiter: "\nAnswer: " # this separates questions from answers
+#   has_categories: true

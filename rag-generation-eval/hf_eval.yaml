@@ -1,0 +1,31 @@
+max_seq_len: 3000
+seed: 1
+precision: amp_bf16
+
+models:
+-
+  model_name: mosaicml/mpt-7b-8k
+  model:
+    name: hf_causal_lm
+    pretrained_model_name_or_path: mosaicml/mpt-7b-8k
+    init_device: mixed
+    pretrained: true
+    # load_in_8bit: true
+    config_overrides:
+      max_seq_len: ${max_seq_len}
+  tokenizer:
+    name: mosaicml/mpt-7b
+    kwargs:
+      model_max_length: ${max_seq_len}
+
+
+device_eval_batch_size: 1
+
+# FSDP config for model sharding
+fsdp_config:
+  sharding_strategy: FULL_SHARD
+  mixed_precision: FULL
+  forward_prefetch: True
+  limit_all_gathers: True
+
+icl_tasks: '/mnt/workdisk/eitan/debug/yamls/tasks_light.yaml'
