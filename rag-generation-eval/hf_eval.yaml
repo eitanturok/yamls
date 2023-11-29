@@ -28,4 +28,29 @@ fsdp_config:
   forward_prefetch: True
   limit_all_gathers: True
 
-icl_tasks: '/mnt/workdisk/eitan/debug/yamls/tasks_light.yaml'
+icl_tasks:
+-
+  label: ms-marco
+  # dataset_uri: /mnt/workdisk/eitan/llm-foundry/scripts/eval/local_data/rag_generation/ms_marco_validation.jsonl
+  dataset_uri: eitanturok/ms-marco
+  hf_loading_vars:
+    split: train
+  num_fewshot: [0]
+  icl_task_type: rag_generation
+  prompt_string: "Please use the passages to answer the question:\n"
+  continuation_delimiter: "\nAnswer: " # this separates questions from answers
+
+eval_gauntlet:
+-
+  weighting: EQUAL
+  subtract_random_baseline: true
+  rescale_accuracy: true
+  averages:
+    core_average:
+    - rag_generation
+  categories:
+  - name: rag_generation
+    benchmarks:
+    - name: ms-marco
+      num_fewshot: 0
+      random_baseline: 0
