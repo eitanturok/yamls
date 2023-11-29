@@ -34,14 +34,13 @@ icl_tasks:
   # dataset_uri: /mnt/workdisk/eitan/llm-foundry/scripts/eval/local_data/rag_generation/ms_marco_validation.jsonl
   dataset_uri: eitanturok/ms-marco
   hf_loading_vars:
-    split: train
+    split: small
   num_fewshot: [0]
   icl_task_type: rag_generation
   prompt_string: "Please use the passages to answer the question:\n"
   continuation_delimiter: "\nAnswer: " # this separates questions from answers
 
 eval_gauntlet:
--
   weighting: EQUAL
   subtract_random_baseline: true
   rescale_accuracy: true
