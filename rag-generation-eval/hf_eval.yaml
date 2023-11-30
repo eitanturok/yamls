@@ -1,4 +1,4 @@
-max_seq_len: 15000
+max_seq_len: 8000
 seed: 1
 precision: amp_bf16
 
