@@ -1,4 +1,4 @@
-max_seq_len: 3000
+max_seq_len: 15000
 seed: 1
 precision: amp_bf16
 
@@ -10,7 +10,6 @@ models:
     pretrained_model_name_or_path: mosaicml/mpt-7b-8k
     init_device: mixed
     pretrained: true
-    # load_in_8bit: true
     config_overrides:
       max_seq_len: ${max_seq_len}
   tokenizer:
@@ -34,10 +33,10 @@ icl_tasks:
   # dataset_uri: /mnt/workdisk/eitan/llm-foundry/scripts/eval/local_data/rag_generation/ms_marco_validation.jsonl
   dataset_uri: eitanturok/ms-marco
   hf_loading_vars:
-    split: small
+    split: validation
   num_fewshot: [0]
   icl_task_type: rag_generation
-  prompt_string: "Please use the passages to answer the question:\n"
+  prompt_string: "Please read the passages below and use them to answer the query. Respond using direct text from the passages Do not use any words besides what is given in the passages."
   continuation_delimiter: "\nAnswer: " # this separates questions from answers
 
 eval_gauntlet:
