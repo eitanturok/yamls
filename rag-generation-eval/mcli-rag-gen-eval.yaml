@@ -1,0 +1,29 @@
+integrations:
+- integration_type: git_repo
+  git_repo: eitanturok/llm-foundry
+  git_branch: main
+  ssh_clone: false # Should be true if using a private repo
+  path: /workspace/llm-foundry
+  pip_install: -e .[gpu]
+- integration_type: git_repo
+  git_repo: eitanturok/composer
+  git_branch: icl_refactor
+  ssh_clone: false # Should be true if using a private repo
+  pip_install: -e .[all] # From: https://github.com/mosaicml/composer/blob/dev/CONTRIBUTING.md#prerequisites
+  path: /workspace/composer
+- integration_type: git_repo
+  git_repo: eitanturok/yamls
+  git_branch: main
+  ssh_clone: false # Should be true if using a private repo
+  path: /workspace/yamls
+
+command: |
+  cd workspace/llm-foundry/scripts
+  composer eval/eval.py /workspace/yamls/rag-generation-eval/hf_eval.yaml
+image: mosaicml/pytorch:2.1.0_cu121-python3.10-ubuntu20.04
+name: rag-gen-eval
+
+compute:
+  gpus: 8  # Number of GPUs to use
+  cluster: r15z1 # Name of the cluster to use for this run
+  gpu_type: h100_80gb # Type of GPU to use.
