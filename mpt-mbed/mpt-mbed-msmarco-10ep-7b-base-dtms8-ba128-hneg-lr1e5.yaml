@@ -1,0 +1,203 @@
+# The following yaml is a template for running experiments
+# for contrastive learning using the Composer MPT-Embed architecture
+#
+# Created: November 21, 2023
+# Updated: December 7, 2023
+#
+# to run using mcli, do `mcli run -f <my yaml>.yaml`
+#
+#
+# Note that some of the fields in this template haven't been filled in yet.
+# Please resolve any `null` fields before launching!
+#
+# Follow the instructions in the README to set up ./my-copy-c4
+# Or point data paths to your remote C4 dataset
+
+name: mpt-mbed-msmarco-10ep-7b-base-dtms8-ba128-hard-negatives # make sure the name corresponds with information in the yaml!
+gpu_type: a100_40gb
+gpu_num: 64
+platform: r12z3 # this can also be changed in the command line
+image: mosaicml/llm-foundry:2.1.0_cu121-e772a47
+
+scheduling:
+  priority: medium # medium is ok for r1z1, set to low for other clusters
+  preemptible: True # whether somebody can preempt
+
+env_variables:
+  - key: NCCL_DEBUG
+    value: INFO
+
+integrations:
+  - integration_type: "wandb"
+    project: mpt-mbed-msmarco # make sure name reflects the experiment sweep
+    entity: mosaic-ml
+    group: mpt-mbed-msmarco-hard-negatives # make sure the group name is relevant for plotting averages
+    tags:
+    - 7b
+  - integration_type: git_repo
+    git_repo: jacobfulano/llm-foundry
+    git_branch: mpt-hard-negatives
+    # git_commit: # OR use your commit hash
+    pip_install: -e .[gpu] # note that we changed from [gpu]
+    ssh_clone: false # Should be true if using a private repo
+  # I don't think this integration here is necessary
+  # - integration_type: mlflow
+  #   tracking_uri: databricks
+  #   experiment_name: /Users/jacob.portes@databricks.com/mpt-embed-125m
+
+command: |
+  export NCCL_COLLNET_ENABLE="0"
+  export NCCL_IB_PCI_RELAXED_ORDERING="1"
+
+  pip install awscli
+
+  # We can't have 2 AWS profiles at the same time, so downloading the checkpoints before switching to data-force-one
+  aws s3 cp s3://mosaicml-internal-checkpoints-shared/nlp-hero/mpt-7b/base/ckpt.pt /tmp/model.pt
+
+  export AWS_PROFILE=data-force-one
+  cd llm-foundry/scripts
+  composer train/train.py /mnt/config/parameters.yaml
+
+# The below is injected as a YAML file: /mnt/config/parameters.yaml
+parameters:
+  dist_timeout: 6000
+  data_local: /tmp/mds-cache/mds-ms_marco/
+  data_remote: s3://data-force-one-datasets/mbed/datasets/contrastive-pairs/ms_marco-hard-negatives-15-v2/
+
+  max_seq_len: 2048
+  global_seed: 17
+
+  autoresume: true
+
+  # Run Name
+  run_name: # If left blank, will be read from env var $RUN_NAME
+
+  # Model
+  model:
+    name: mpt_contrastive_lm # JP: added, this creates a ComposerMPTContrastiveLM model
+    # temperature unique for contrastive loss
+
+    # MPT MBed Settings
+    temperature: 0.01 # JP: added
+    pos_step_size: 17
+
+    # TO DO: SET ATTENTION MASK TO NOT BE CAUSAL
+    is_causal: true # JP: added, small change to MPTCausalLM
+    init_device: meta
+    loss_fn: torch_crossentropy
+    # The following values are small, and taken from the MPT-3B yaml
+    d_model: 4096
+    n_heads: 32
+    n_layers: 32
+    expansion_ratio: 4
+    max_seq_len: ${max_seq_len}
+    vocab_size: 50368 # The Niall 3B-2T-Base uses 50432
+    learned_pos_emb: false # JP Added this
+    rope: false # JP added this
+    tie_word_embeddings: true # JP changed this on 12-5 back to true
+    use_train_metrics: true # JP Added this
+    attn_config:
+      attn_impl: triton # options are {triton, flash, torch} could also be flash attention
+      attn_uses_sequence_id: false # true recommended by Shashank for padding
+      alibi: true
+
+    no_bias: true
+
+  # Tokenizer
+  tokenizer:
+    name: EleutherAI/gpt-neox-20b
+    kwargs:
+      model_max_length: ${max_seq_len}
+      bos_token_id: 0 # default
+      eos_token_id: 0 # default
+      pad_token_id: 0 # doesn't get used, need to manually set
+
+  # Dataloaders
+  train_loader:
+    name: contrastive_pairs # changed from 'text'
+    dataset:
+      local: ${data_local}
+      remote: ${data_remote}
+      split: null # note that this is null. In some instances it is 'train'
+      shuffle: true
+      max_seq_len: ${max_seq_len}
+      shuffle_seed: ${global_seed}
+      download_timeout: 600 # added because my run failed for 60 seconds (default)
+    drop_last: false
+    num_workers: 8
+
+  # Optimization
+  scheduler:
+    name: cosine_with_warmup # linear_decay_with_warmup
+    t_warmup: 24ba # Keeping constant for this specific experiment to train on 1ep, 10ep and 20ep and then compare
+    alpha_f: 0.00 # was was 0.1
+
+  optimizer:
+    name: decoupled_lionw
+    lr: 1.0e-5 # 1.0e-4 with Mosaicbert # was 6.0e-4
+    betas:
+    - 0.9
+    - 0.95
+    # eps: 1.0e-06 # was 1.0e-08
+    weight_decay: 1.0e-5 # was 0.0
+
+  algorithms:
+    gradient_clipping:
+      clipping_type: norm
+      clipping_threshold: 1.0
+
+  max_duration: 22ep # pass through MS MARCO dataset 10x is roughly 8M pairs
+  eval_interval: 1 # was 1ep # 500ba to avoid issues while debugging
+  # Specifying `eval_interval=1ep` without an `eval_dataloader` has no effect. If trying to run an evaluator, make sure `eval_dataloader` is specified. Otherwise, set `eval_interval` to default value 1.
+  eval_first: false
+  eval_subset_num_batches: -1
+  global_train_batch_size: 32 # large batch size for contrastive pretraining # 64 #
+
+  # System
+  seed: ${global_seed}
+  device_eval_batch_size: 16
+  device_train_microbatch_size: 1
+  # device_train_microbatch_size: auto
+  precision: amp_bf16
+
+  # FSDP (if removed, composer does DDP)
+  fsdp_config:
+    state_dict_type: full # this needs to be full when loading from a mono checkpoint (sharded if loading from sharded checkpoints)
+    sharding_strategy: FULL_SHARD
+    mixed_precision: PURE
+    activation_checkpointing: true
+    activation_checkpointing_reentrant: false
+    activation_cpu_offload: false
+    limit_all_gathers: true
+    verbose: false
+
+  # Logging
+  progress_bar: false
+  log_to_console: true
+  console_log_interval: 1ba
+
+  callbacks:
+    speed_monitor:
+      window_size: 10
+    lr_monitor: {}
+    memory_monitor: {}
+    runtime_estimator: {}
+
+  loggers:
+    wandb:
+      project: mpt-mbed-msmarco     # Fill this in
+      entity: mosaic-ml     # Fill this in
+    # mlflow:
+    #   experiment_name: /Users/jacob.portes@databricks.com/mpt-embed-125m
+    #   tracking_uri: databricks
+
+  # Checkpoint to local filesystem or remote object store
+  save_interval: 1ep # Just doing 1ep for these small MS Marco training runs
+  save_num_checkpoints_to_keep: 1  # Important, this cleans up checkpoints saved to DISK
+  #save_folder: ./{run_name}/checkpoints
+  save_folder: oci://mosaicml-internal-mpt-embed-checkpoints/pretraining/{run_name}/checkpoints #s3://my-bucket/my-folder/{run_name}/checkpoints
+
+  # Load from local filesystem or remote object store
+  load_path: /tmp/model.pt
+  load_weights_only: true
+  # load_path: s3://my-bucket/my-folder/gpt-125m/checkpoints/latest-rank{rank}.pt
