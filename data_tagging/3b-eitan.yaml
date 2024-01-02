@@ -1,6 +1,6 @@
 name: data-tagging-3b-nl-doc
 gpu_type: a100_40gb
-gpu_num: 64
+gpu_num: 16
 platform: r12z3 # this can also be changed in the command line
 image: mosaicml/llm-foundry:2.1.0_cu121-e772a47
 
@@ -8,7 +8,7 @@ scheduling:
   priority: medium # medium is ok for r1z1, set to low for other clusters
   preemptible: True # whether somebody can preempt
   retry_on_system_failure: true
-  max_retries: 1
+  max_retries: 0
 
 integrations:
   - integration_type: "wandb"
@@ -24,7 +24,6 @@ integrations:
     pip_install: .[gpu]
     ssh_clone: false
 
-
 command: |-
   export AWS_PROFILE=data-force-one
   export MOSAICML_PLATFORM=FALSE
@@ -38,47 +37,33 @@ parameters:
   tokenizer_name: tiktoken
   max_seq_len: 4096
   global_seed: 17
-  num_canonical_nodes: 64
-
-  # # Model
-  # model:
-  #   name: mpt_causal_lm
-  #   init_device: meta
-  #   tokenizer_name: ${tokenizer_name}
-  #   max_seq_len: ${max_seq_len}
-  #   vocab_size: 100352
-  #   no_bias: True
-  #   norm_type: low_precision_layernorm
-
-  #   # added settings
-  #   expansion_ratio: 4
-
-  #   attn_config:
-  #     attn_type: grouped_query_attention
-  #     attn_impl: triton
-  #     clip_qkv: 8
-  #     kv_n_heads: 3
-  #     alibi: True
-  #     attn_uses_sequence_id: false
+  data_local: /tmp/mds-cache/mds-data-tagging/
+  data_remote: s3://data-force-one-datasets/eitan/tagged_data_03/processed/by_tag/concat_4096_mds/
+  checkpoint_directory: s3://data-force-one-datasets/eitan/checkpoints/{run_name} # oci://mosaicml-internal-data-tagging-checkpoints/{run_name}
 
   # Model
   model:
     name: mpt_causal_lm
     init_device: meta
     d_model: 2560
-    n_heads: 20  # Modified 32->20 so that d_head == 128 to statisfy FlashAttention
+    n_heads: 32
     n_layers: 32
     expansion_ratio: 4
+    tokenizer_name: ${tokenizer_name}
     max_seq_len: ${max_seq_len}
     vocab_size: 100352
+    no_bias: true
     attn_config:
+      alibi: true
       attn_impl: triton
+      clip_qkv: 6
 
-  save_folder: 3b-data-tagging-checkpoints # Try out ${name}-checkpoints
-  save_num_checkpoints_to_keep: 1  # Important, this cleans up checkpoints saved to DISK
-
-  save_interval: 0.05dur
+  # Checkpointing
   autoresume: true
+  save_filename: ep{epoch}-ba{batch}/rank{rank}.pt
+  save_folder: ${checkpoint_directory}
+  save_interval: 0.5dur
+  save_num_checkpoints_to_keep: 1
 
   # Tokenizer
   tokenizer:
@@ -92,14 +77,14 @@ parameters:
       cache_limit: 5tb
       download_timeout: 360
       max_seq_len: ${max_seq_len}
-      num_canonical_nodes: ${num_canonical_nodes}
+      num_canonical_nodes: 8
       predownload: 120
       shuffle: true
       shuffle_algo: py1e
       shuffle_block_size: 25_000
       shuffle_seed: ${global_seed}
-      # local: /tmp/dataset/mpt2/
-      remote: s3://data-force-one-datasets/eitan/tagged_data_03/processed/by_tag/concat_4096_mds/
+      local: ${data_local}
+      remote: ${data_remote}
 
     drop_last: true
     name: text
@@ -108,7 +93,7 @@ parameters:
   # Optimization
   scheduler:
     name: cosine_with_warmup
-    t_warmup: 100ba
+    t_warmup: 419_430_400tok #100ba * max_seq_len * global_train_batch_size =
     alpha_f: 0.01
 
   # added settings
@@ -124,19 +109,17 @@ parameters:
       clipping_type: norm
       clipping_threshold: 1.0
 
-  # Interval
-  max_duration: 1ep
-  # # Used only for evaluation
+  # Interval/Durations
+  max_duration: 60_000_000_000tok
   eval_interval: 0
   eval_first: false
 
   # System
   seed: ${global_seed}
-  device_eval_batch_size: 2
 
   # added settings
-  device_train_microbatch_size: 3
-  global_train_batch_size: 960
+  device_train_microbatch_size: 1
+  global_train_batch_size: 1024 # must be divisible by gpu_num
   precision: amp_bf16
 
   # Logging
