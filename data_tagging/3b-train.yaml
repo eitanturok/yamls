@@ -82,6 +82,7 @@ parameters:
       shuffle: true
       shuffle_algo: py1e
       shuffle_block_size: 25_000
+      batching_method: stratified
       shuffle_seed: ${global_seed}
       local: ${data_local}
       remote: ${data_remote}
