@@ -1,0 +1,48 @@
+max_seq_len: 1024
+seed: 1
+precision: fp32
+
+# If you are using one model, put it here:
+model_name_or_path: mosaicml/mpt-7b
+# otherwise, write a block for each model you want to test in the `models` section
+
+models:
+-
+  model_name: ${model_name_or_path}
+  # load_path: ${model_name_or_path}
+  model:
+    name: hf_causal_lm
+    pretrained_model_name_or_path: ${model_name_or_path}
+    init_device: mixed
+    pretrained: true
+  tokenizer:
+    name: ${model_name_or_path}
+    kwargs:
+      model_max_length: ${max_seq_len}
+
+
+device_eval_batch_size: 4
+
+# FSDP config for model sharding
+fsdp_config:
+  sharding_strategy: FULL_SHARD
+  mixed_precision: FULL
+  forward_prefetch: True
+  limit_all_gathers: True
+
+icl_tasks:
+-
+  label: jeopardy-tagged
+  dataset_uri: eval/local_data/world_knowledge/jeopardy_small.jsonl
+  num_fewshot: [3]
+  icl_task_type: language_modeling
+  continuation_delimiter: "\nAnswer: " # this separates questions from answers
+  has_categories: true
+  cot_delimiter: 'This is a high quality news text: '
+-
+  label: jeopardy
+  dataset_uri: eval/local_data/world_knowledge/jeopardy_small.jsonl
+  num_fewshot: [3]
+  icl_task_type: language_modeling
+  continuation_delimiter: "\nAnswer: " # this separates questions from answers
+  has_categories: true
