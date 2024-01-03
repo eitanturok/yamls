@@ -1,12 +1,12 @@
 name: data-tagging-3b-nl-doc
 gpu_type: a100_40gb
-gpu_num: 16
-platform: r12z3 # this can also be changed in the command line
+gpu_num: 64
+platform: r12z3p2 # this can also be changed in the command line
 image: mosaicml/llm-foundry:2.1.0_cu121-e772a47
 
 scheduling:
-  priority: medium # medium is ok for r1z1, set to low for other clusters
-  preemptible: True # whether somebody can preempt
+  priority: low
+  preemptible: True
   retry_on_system_failure: true
   max_retries: 0
 
@@ -82,6 +82,7 @@ parameters:
       shuffle: true
       shuffle_algo: py1e
       shuffle_block_size: 25_000
+      batching_method: stratified
       shuffle_seed: ${global_seed}
       local: ${data_local}
       remote: ${data_remote}
