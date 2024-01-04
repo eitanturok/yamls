@@ -57,7 +57,7 @@ parameters:
     load_path: ${model_path}
 
   # System
-  device_eval_batch_size: 16
+  device_eval_batch_size: 4
 
   # FSDP config for model sharding
   fsdp_config:
@@ -75,20 +75,20 @@ parameters:
 
   icl_tasks:
   -
-    label: jeopardy
-    dataset_uri: eval/local_data/world_knowledge/jeopardy_all.jsonl
+    label: squad-wikipedia
+    dataset_uri: eval/local_data/reading_comprehension/squad.jsonl
     num_fewshot: [3]
     icl_task_type: language_modeling
-    continuation_delimiter: "\nAnswer: " # this separates questions from answers
-    has_categories: true
-    # label: squad-wikipedia
-    # dataset_uri: eval/local_data/reading_comprehension/squad.jsonl
-    # num_fewshot: [3]
-    # icl_task_type: language_modeling
-    # continuation_delimiter: 'This is a high quality wiki: '
-  # -
-  #   label: squad-no-tag
-  #   dataset_uri: eval/local_data/reading_comprehension/squad.jsonl
-  #   num_fewshot: [3]
-  #   icl_task_type: language_modeling
-  #   continuation_delimiter: 'This is a high quality wiki: '
+    continuation_delimiter: 'This is a high quality wiki: '
+  -
+    label: squad-no-tag
+    dataset_uri: eval/local_data/reading_comprehension/squad.jsonl
+    num_fewshot: [3]
+    icl_task_type: language_modeling
+    continuation_delimiter: 'This is a high quality news: '
+  -
+    label: squad-no-tag
+    dataset_uri: eval/local_data/reading_comprehension/squad.jsonl
+    num_fewshot: [3]
+    icl_task_type: language_modeling
+    continuation_delimiter: ''
