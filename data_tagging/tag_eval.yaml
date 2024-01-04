@@ -1,4 +1,4 @@
-name: data-tagging-3b-nl-doc
+name: data-tagging-3b-nl-doc-eval
 gpu_type: a100_40gb
 gpu_num: 8
 platform: r12z3p2 # this can also be changed in the command line
@@ -11,14 +11,6 @@ scheduling:
   max_retries: 0
 
 integrations:
-  - integration_type: "wandb"
-    project: data_tagging # make sure name reflects the experiment sweep
-    entity: mosaic-ml
-    group: data-tagging-3b-nl-doc # make sure the group name is relevant for plotting averages
-    tags:
-    - 3b
-    - nl
-    - doc
   - integration_type: git_repo
     git_repo: mosaicml/llm-foundry
     pip_install: .[gpu]
@@ -38,8 +30,7 @@ parameters:
   precision: amp_fp16
   tokenizer_name: tiktoken
   max_seq_len: 4096
-  model_path: s3://data-force-one-datasets/eitan/checkpoints/data-tagging-3b-nl-doc-R0dPNA/
-
+  model_path: s3://data-force-one-datasets/eitan/checkpoints/data-tagging-3b-nl-doc-R0dPNA/latest-rank0.pt.symlink
   # Model
   models:
   -
@@ -71,10 +62,17 @@ parameters:
 
   # FSDP config for model sharding
   fsdp_config:
+    activation_checkpointing: false
+    activation_checkpointing_reentrant: true
+    activation_cpu_offload: false
+    backward_prefetch: BACKWARD_POST
+    forward_prefetch: true
+    limit_all_gathers: true
+    mixed_precision: PURE
     sharding_strategy: FULL_SHARD
-    mixed_precision: FULL
-    forward_prefetch: True
-    limit_all_gathers: True
+    state_dict_type: sharded
+    use_orig_params: false
+    verbose: false
 
   icl_tasks:
   -
