@@ -95,7 +95,7 @@ parameters:
   # Optimization
   scheduler:
     name: cosine_with_warmup
-    t_warmup: 419_430_400tok #100ba * max_seq_len * global_train_batch_size =
+    t_warmup: 100ba #100ba * max_seq_len * global_train_batch_size =
     alpha_f: 0.01
 
   # added settings
