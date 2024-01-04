@@ -1,6 +1,6 @@
 name: data-tagging-3b-nl-doc
 gpu_type: a100_40gb
-gpu_num: 1
+gpu_num: 8
 platform: r12z3 # this can also be changed in the command line
 image: mosaicml/llm-foundry:2.1.0_cu121-e772a47
 
