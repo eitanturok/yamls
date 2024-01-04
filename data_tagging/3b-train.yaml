@@ -140,8 +140,12 @@ parameters:
       batch_interval: 2000
     hf_checkpointer:
       save_interval: ${my_save_interval}
-      save_folder: ${checkpoint_directory}/hfcp/{run_name}
+      save_folder: ${checkpoint_directory}/${run_name}/hf_cp
       # Set the precision you want the checkpoint saved in
+      precision: bfloat16
+    mono_ckpt_saver:
+      save_interval: ${my_save_interval}
+      save_folder: ${checkpoint_directory}/${run_name}/mono_cp
       precision: bfloat16
 
   # Loggers
