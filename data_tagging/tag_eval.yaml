@@ -1,0 +1,97 @@
+name: data-tagging-3b-nl-doc
+gpu_type: a100_40gb
+gpu_num: 8
+platform: r12z3p2 # this can also be changed in the command line
+image: mosaicml/llm-foundry:2.1.0_cu121-e772a47
+
+scheduling:
+  priority: low
+  preemptible: True
+  retry_on_system_failure: true
+  max_retries: 0
+
+integrations:
+  - integration_type: "wandb"
+    project: data_tagging # make sure name reflects the experiment sweep
+    entity: mosaic-ml
+    group: data-tagging-3b-nl-doc # make sure the group name is relevant for plotting averages
+    tags:
+    - 3b
+    - nl
+    - doc
+  - integration_type: git_repo
+    git_repo: mosaicml/llm-foundry
+    pip_install: .[gpu]
+    ssh_clone: false
+
+command: |-
+  export AWS_PROFILE=data-force-one
+  export MOSAICML_PLATFORM=FALSE
+
+  cd llm-foundry/scripts
+  composer eval/eval.py /mnt/config/parameters.yaml || (echo "Command failed - killing python" && pkill python && exit 1)
+
+# The below is injected as a YAML file: /mnt/config/parameters.yaml
+parameters:
+
+  seed: 1
+  precision: amp_fp16
+  tokenizer_name: tiktoken
+  max_seq_len: 4096
+  model_path: s3://data-force-one-datasets/eitan/checkpoints/data-tagging-3b-nl-doc-R0dPNA/
+
+  # Model
+  models:
+  -
+    model_name: tag_3b
+    # Tokenizer
+    tokenizer:
+      name: ${tokenizer_name}
+      kwargs:
+        model_name: gpt-4
+    model:
+      name: mpt_causal_lm
+      init_device: meta
+      d_model: 2560
+      n_heads: 32
+      n_layers: 32
+      expansion_ratio: 4
+      tokenizer_name: ${tokenizer_name}
+      max_seq_len: ${max_seq_len}
+      vocab_size: 100352
+      no_bias: true
+      attn_config:
+        alibi: true
+        attn_impl: triton
+        clip_qkv: 6
+    load_path: ${model_path}
+
+  # System
+  device_eval_batch_size: 16
+
+  # FSDP config for model sharding
+  fsdp_config:
+    sharding_strategy: FULL_SHARD
+    mixed_precision: FULL
+    forward_prefetch: True
+    limit_all_gathers: True
+
+  icl_tasks:
+  -
+    label: jeopardy
+    dataset_uri: eval/local_data/world_knowledge/jeopardy_all.jsonl
+    num_fewshot: [3]
+    icl_task_type: language_modeling
+    continuation_delimiter: "\nAnswer: " # this separates questions from answers
+    has_categories: true
+    # label: squad-wikipedia
+    # dataset_uri: eval/local_data/reading_comprehension/squad.jsonl
+    # num_fewshot: [3]
+    # icl_task_type: language_modeling
+    # continuation_delimiter: 'This is a high quality wiki: '
+  # -
+  #   label: squad-no-tag
+  #   dataset_uri: eval/local_data/reading_comprehension/squad.jsonl
+  #   num_fewshot: [3]
+  #   icl_task_type: language_modeling
+  #   continuation_delimiter: 'This is a high quality wiki: '
