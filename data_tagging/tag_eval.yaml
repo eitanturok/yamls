@@ -30,8 +30,7 @@ parameters:
   precision: amp_fp16
   tokenizer_name: tiktoken
   max_seq_len: 4096
-  model_path: s3://data-force-one-datasets/eitan/checkpoints/data-tagging-3b-nl-doc-R0dPNA/latest-rank0.pt.symlink
-  # Model
+  model_path: s3://data-force-one-datasets/eitan/checkpoints/data-tagging-3b-nl-doc-R0dPNA/ep0-ba14306/ep0-ba14306/  # Model
   models:
   -
     model_name: tag_3b
