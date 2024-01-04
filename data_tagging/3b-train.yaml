@@ -39,7 +39,8 @@ parameters:
   global_seed: 17
   data_local: /tmp/mds-cache/mds-data-tagging/
   data_remote: s3://data-force-one-datasets/eitan/tagged_data_03/processed/by_tag/concat_4096_mds/
-  checkpoint_directory: s3://data-force-one-datasets/eitan/checkpoints/{run_name} # oci://mosaicml-internal-data-tagging-checkpoints/{run_name}
+  checkpoint_directory: s3://data-force-one-datasets/mosaicml-internal-checkpoints # oci://mosaicml-internal-data-tagging-checkpoints/{run_name}
+  my_save_interval: 0.05dur
 
   # Model
   model:
@@ -61,8 +62,8 @@ parameters:
   # Checkpointing
   autoresume: true
   save_filename: ep{epoch}-ba{batch}/rank{rank}.pt
-  save_folder: ${checkpoint_directory}
-  save_interval: 0.5dur
+  save_folder: ${checkpoint_directory}/distcp/{run_name}
+  save_interval: ${my_save_interval}
   save_num_checkpoints_to_keep: 1
 
   # Tokenizer
@@ -111,7 +112,7 @@ parameters:
       clipping_threshold: 1.0
 
   # Interval/Durations
-  max_duration: 60_000_000_000tok
+  max_duration: 10ba
   eval_interval: 0
   eval_first: false
 
@@ -137,12 +138,17 @@ parameters:
     runtime_estimator: {}
     scheduled_gc:
       batch_interval: 2000
+    hf_checkpointer:
+      save_interval: ${my_save_interval}
+      save_folder: ${checkpoint_directory}/hfcp/{run_name}
+      # Set the precision you want the checkpoint saved in
+      precision: bfloat16
 
   # Loggers
   loggers:
     wandb:
-      project: data_tagging    # Fill this in
-      entity: mosaic-ml     # Fill this in
+      project: data_tagging
+      entity: mosaic-ml
 
   # FSDP
   fsdp_config:
