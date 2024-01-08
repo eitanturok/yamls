@@ -1,6 +1,6 @@
 name: data-tagging-3b-nl-doc-eval
 gpu_type: a100_40gb
-gpu_num: 8
+gpu_num: 64
 platform: r12z3p2 # this can also be changed in the command line
 image: mosaicml/llm-foundry:2.1.0_cu121-e772a47
 
@@ -39,6 +39,7 @@ parameters:
       name: ${tokenizer_name}
       kwargs:
         model_name: gpt-4
+       # padding_side: left ?
     model:
       name: mpt_causal_lm
       init_device: meta
@@ -57,7 +58,7 @@ parameters:
     load_path: ${model_path}
 
   # System
-  device_eval_batch_size: 4
+  device_eval_batch_size: 8
 
   # FSDP config for model sharding
   fsdp_config:
@@ -81,14 +82,74 @@ parameters:
     icl_task_type: language_modeling
     continuation_delimiter: 'This is a high quality wiki: '
   -
-    label: squad-no-tag
+    label: squad-news
     dataset_uri: eval/local_data/reading_comprehension/squad.jsonl
     num_fewshot: [3]
     icl_task_type: language_modeling
-    continuation_delimiter: 'This is a high quality news: '
+    continuation_delimiter: 'This is a high quality news text: '
+  -
+    label: squad-QA
+    dataset_uri: eval/local_data/reading_comprehension/squad.jsonl
+    num_fewshot: [3]
+    icl_task_type: language_modeling
+    continuation_delimiter: 'This is a high quality question and answer exchange: '
   -
     label: squad-no-tag
     dataset_uri: eval/local_data/reading_comprehension/squad.jsonl
     num_fewshot: [3]
     icl_task_type: language_modeling
     continuation_delimiter: ''
+  -
+    label: squad-wikipedia-endoftext
+    dataset_uri: eval/local_data/reading_comprehension/squad.jsonl
+    num_fewshot: [3]
+    icl_task_type: language_modeling
+    continuation_delimiter: '<|endoftext|>This is a high quality wiki: '
+  -
+    label: squad-news-endoftext
+    dataset_uri: eval/local_data/reading_comprehension/squad.jsonl
+    num_fewshot: [3]
+    icl_task_type: language_modeling
+    continuation_delimiter: '<|endoftext|>This is a high quality news text: '
+  -
+    label: squad-QA-endoftext
+    dataset_uri: eval/local_data/reading_comprehension/squad.jsonl
+    num_fewshot: [3]
+    icl_task_type: language_modeling
+    continuation_delimiter: '<|endoftext|>This is a high quality question and answer exchange: '
+  -
+    label: squad-wikipedia-prompt-string
+    dataset_uri: eval/local_data/reading_comprehension/squad.jsonl
+    num_fewshot: [3]
+    icl_task_type: language_modeling
+    prompt_string: 'This is a high quality wiki: '
+  -
+    label: squad-news-prompt-string
+    dataset_uri: eval/local_data/reading_comprehension/squad.jsonl
+    num_fewshot: [3]
+    icl_task_type: language_modeling
+    prompt_string: 'This is a high quality news text: '
+  -
+    label: squad-QA-prompt-string
+    dataset_uri: eval/local_data/reading_comprehension/squad.jsonl
+    num_fewshot: [3]
+    icl_task_type: language_modeling
+    prompt_string: 'This is a high quality question and answer exchange: '
+  -
+    label: squad-wikipedia-prompt-string-endoftext
+    dataset_uri: eval/local_data/reading_comprehension/squad.jsonl
+    num_fewshot: [3]
+    icl_task_type: language_modeling
+    prompt_string: '<|endoftext|>This is a high quality wiki: '
+  -
+    label: squad-news-prompt-string-endoftext
+    dataset_uri: eval/local_data/reading_comprehension/squad.jsonl
+    num_fewshot: [3]
+    icl_task_type: language_modeling
+    prompt_string: '<|endoftext|>This is a high quality news text: '
+  -
+    label: squad-QA-prompt-string-endoftext
+    dataset_uri: eval/local_data/reading_comprehension/squad.jsonl
+    num_fewshot: [3]
+    icl_task_type: language_modeling
+    prompt_string: '<|endoftext|>This is a high quality question and answer exchange: '
