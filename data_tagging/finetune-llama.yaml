@@ -1,0 +1,174 @@
+# Name and image
+name: data-tagging-nl-doc-7b-llama-ft
+image: mosaicml/llm-foundry:2.1.0_cu121-e772a47
+
+# Compute
+gpu_type: a100_40gb
+gpu_num: 16
+platform: r12z3p2
+
+# Scheduling
+scheduling:
+  priority: low
+  preemptible: true
+  max_retries: 3
+  watchdogEnabled: true
+
+# Integrations
+integrations:
+- integration_type: git_repo
+  git_repo: mosaicml/llm-foundry
+  ssh_clone: false
+  git_commit: 2b1fa79dda4feb9eac34227359f2b279df564edc
+  pip_install: .[gpu]
+- integration_type: wandb
+  entity: mosaic-ml
+  project: data_tagging
+  group: data-tagging-llama-7b-ft
+  tags:
+    - llama
+    - 7b
+    - nl
+    - doc
+
+# Environment
+env_variables:
+- key: AWS_PROFILE
+  value: data-force-one
+
+# Command
+command: |-
+  cd llm-foundry/scripts
+  composer train/train.py /mnt/config/parameters.yaml || (echo "Command failed - killing python" && pkill python && exit 1)
+
+# The below is injected as a YAML file: /mnt/config/parameters.yaml
+parameters:
+
+  # Global
+  exp_name: nl-doc-7b-llama-ft
+  global_seed: 17
+  max_seq_len: 4096
+  local_data_dir: /tmp/dataset/
+  remote_data_dir: s3://data-force-one-datasets/eitan/data_tagging_4/tok_llama/nl_tag/concat_4096_mds/
+  save_ckpt_interval: 1ba
+  ckpt_dir: s3://data-force-one-datasets/mosaicml-internal-checkpoints/data-tagging/
+
+  # System
+  max_duration: 1ba # 26000ba
+  global_train_batch_size: 192
+  device_train_microbatch_size: 6
+  device_eval_batch_size: 6
+  seed: ${global_seed}
+  precision: amp_bf16
+  dist_timeout: 7200
+  max_split_size_mb: 512
+
+  # Model
+  model:
+    name: hf_causal_lm
+    pretrained: true
+    init_device: mixed
+    use_auth_token: true
+    use_flash_attention_2: true
+    pretrained_model_name_or_path: meta-llama/Llama-2-7b-hf
+  tokenizer:
+    name: meta-llama/Llama-2-7b-hf
+    kwargs:
+      model_max_length: ${max_seq_len}
+
+  # Data
+  train_loader:
+    name: text
+    timeout: 0
+    drop_last: false
+    pin_memory: true
+    num_workers: 8
+    prefetch_factor: 2
+    persistent_workers: true
+    dataset:
+      cache_limit: 5tb
+      download_timeout: 360
+      predownload: 4194304
+      shuffle: true
+      shuffle_algo: py1e
+      shuffle_seed: ${global_seed}
+      batching_method: stratified
+      max_seq_len: ${max_seq_len}
+      streams:
+        wikipedia:
+          local: ${local_data_dir}/wikipedia/
+          proportion: 1.0
+          remote: ${remote_data_dir}/wikipedia/
+
+  # Optimization
+  optimizer:
+    lr: 1.0e-5
+    name: decoupled_lionw
+    betas:
+    - 0.9
+    - 0.95
+    weight_decay: 0
+  scheduler:
+    name: inv_sqrt_with_warmup
+    t_warmup: 1000ba
+    t_scale: 1000ba
+    t_cooldown: 5200ba
+    alpha_f_decay: 1.0
+    alpha_f_cooldown: 0.0
+
+  # Algorithms
+  algorithms:
+    gradient_clipping:
+      clipping_type: norm
+      clipping_threshold: 1
+
+  # Logging
+  loggers:
+    wandb:
+      project: data_tagging
+      entity: mosaic-ml
+  progress_bar: false
+  log_to_console: true
+  python_log_level: debug
+  console_log_interval: 10ba
+
+  # Saving
+  autoresume: true
+  save_folder: ${ckpt_dir}/${exp_name}/dist_cp/
+  save_interval: ${save_ckpt_interval}
+  save_weights_only: false
+  save_num_checkpoints_to_keep: 1
+
+  # FSDP
+  fsdp_config:
+    verbose: false
+    mixed_precision: PURE
+    limit_all_gathers: true
+    sharding_strategy: FULL_SHARD
+    activation_cpu_offload: false
+    activation_checkpointing: true
+    activation_checkpointing_reentrant: false
+
+  # Callbacks
+  callbacks:
+    lr_monitor: {}
+    memory_monitor: {}
+    runtime_estimator: {}
+    scheduled_gc:
+      batch_interval: 1000
+    speed_monitor:
+      window_size: 10
+    hf_checkpointer:
+      precision: bfloat16
+      save_folder: ${ckpt_dir}/${exp_name}/hf_cp/
+      save_interval: ${save_ckpt_interval}
+    mono_ckpt_saver:
+      precision: bfloat16
+      save_folder: ${ckpt_dir}`/${exp_name}/mono_cp/
+      save_interval: ${save_ckpt_interval}
+
+  # Eval
+  # eval_gauntlet: 'eval/yamls/eval_gauntlet_v0.2.yaml'
+  # icl_tasks: 'eval/yamls/tasks_v0.2.yaml'
+  eval_interval: 0 # 1dur
+  eval_first: false
